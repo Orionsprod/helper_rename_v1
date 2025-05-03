@@ -1,4 +1,4 @@
-import { SERVICE_ACCOUNT_JSON, DEBUG } from "./config.ts";
+import { SERVICE_ACCOUNT_JSON, DEBUG } from "./rename_config.ts";
 
 function decodePEM(pem: string): ArrayBuffer {
   const lines = pem
