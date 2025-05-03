@@ -20,6 +20,10 @@ Deno.serve(async (req) => {
 
     const newName = await getPageTitle(pageId);
     const folderId = await getFolderIdFromPage(pageId);
+    if (!folderId) {
+      return new Response("⚠️ No Project Folder set — skipping.", { status: 200 });
+    }
+
 
     const exists = await folderExistsUnderRoots(folderId, SEARCH_ROOTS);
     if (!exists) {
