@@ -1,4 +1,4 @@
-import { getPageTitle, getFolderIdFromPage } from "./rename_notion.ts";
+import { getTitleWithPreservedPrefix, updateProjectTitle, getFolderIdFromPage } from "./rename_notion.ts";
 import { renameDriveFolder, folderExistsUnderRoots } from "./rename_drive.ts";
 import { DEBUG } from "./rename_config.ts";
 
@@ -18,12 +18,13 @@ Deno.serve(async (req) => {
 
     if (DEBUG) console.log("📩 Webhook received to rename folder for page ID:", pageId);
 
-    const newName = await getPageTitle(pageId);
+    const rebuiltTitle = await getTitleWithPreservedPrefix(pageId);
+    await updateProjectTitle(pageId, rebuiltTitle);
+
     const folderId = await getFolderIdFromPage(pageId);
     if (!folderId) {
       return new Response("⚠️ No Project Folder set — skipping.", { status: 200 });
     }
-
 
     const exists = await folderExistsUnderRoots(folderId, SEARCH_ROOTS);
     if (!exists) {
@@ -31,9 +32,9 @@ Deno.serve(async (req) => {
       return new Response("Folder not found in shared roots.", { status: 404 });
     }
 
-    await renameDriveFolder(folderId, newName);
+    await renameDriveFolder(folderId, rebuiltTitle);
 
-    return new Response("✅ Folder rename successful", { status: 200 });
+    return new Response("✅ Title synced and folder renamed", { status: 200 });
   } catch (e) {
     console.error("🔥 Error in rename webhook handler:");
     console.error(e?.message || e);
