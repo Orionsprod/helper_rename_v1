@@ -46,7 +46,7 @@ export async function getFolderIdFromPage(pageId: string): Promise<string> {
     throw new Error("Notion API Error");
   }
 
-  const folderUrl = data.properties["Master Folder"]?.url;
+  const folderUrl = data.properties["Project Folder"]?.url;
 
   if (!folderUrl) {
     throw new Error("❌ Master Folder URL is empty or missing.");
