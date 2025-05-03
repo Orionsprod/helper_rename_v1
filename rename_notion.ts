@@ -1,6 +1,6 @@
 import { NOTION_TOKEN, DEBUG } from "./rename_config.ts";
 
-export async function getPageTitle(pageId: string): Promise<string> {
+export async function getTitleWithPreservedPrefix(pageId: string): Promise<string> {
   const url = `https://api.notion.com/v1/pages/${pageId}`;
 
   const res = await fetch(url, {
@@ -19,13 +19,53 @@ export async function getPageTitle(pageId: string): Promise<string> {
   }
 
   const titleProp = data.properties["Project Name"];
-  if (titleProp?.title?.[0]?.text?.content) {
-    const title = titleProp.title[0].text.content;
-    if (DEBUG) console.log("✅ Page title fetched:", title);
-    return title;
-  } else {
-    throw new Error("❌ Could not extract title from Notion page.");
+  if (!titleProp?.title?.[0]?.text?.content) {
+    throw new Error("Project Name is missing.");
   }
+
+  const fullTitle = titleProp.title[0].text.content;
+  const match = fullTitle.match(/^(\d{3}_)(.*)$/);
+  const prefix = match ? match[1] : null;
+  const rawTitle = match ? match[2] : fullTitle;
+
+  if (!prefix) {
+    console.warn("⚠️ No prefix found in title. Skipping rename.");
+    return fullTitle;
+  }
+
+  const cleanedTitle = rawTitle.trim().replace(/^\d{3}_/, "").trim();
+  const rebuiltTitle = `${prefix}${cleanedTitle}`;
+
+  if (DEBUG) console.log("✅ Rebuilt title:", rebuiltTitle);
+
+  return rebuiltTitle;
+}
+
+export async function updateProjectTitle(pageId: string, newTitle: string): Promise<void> {
+  const url = `https://api.notion.com/v1/pages/${pageId}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Authorization": `Bearer ${NOTION_TOKEN}`,
+      "Content-Type": "application/json",
+      "Notion-Version": "2022-06-28",
+    },
+    body: JSON.stringify({
+      properties: {
+        "Project Name": {
+          title: [{ text: { content: newTitle } }],
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    console.error("❌ Failed to update Project Name title:", error);
+    throw new Error("Could not update Project Name title.");
+  }
+
+  if (DEBUG) console.log("✅ Project Name title updated in Notion.");
 }
 
 export async function getFolderIdFromPage(pageId: string): Promise<string> {
@@ -48,14 +88,14 @@ export async function getFolderIdFromPage(pageId: string): Promise<string> {
 
   const folderUrl = data.properties["Project Folder"]?.url;
 
-if (!folderUrl) {
-  if (DEBUG) console.log("⚠️ Project Folder URL is empty — skipping rename.");
-  return null;
-}
+  if (!folderUrl) {
+    if (DEBUG) console.log("⚠️ Project Folder URL is missing — skipping.");
+    return "";
+  }
 
   const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   if (!match || !match[1]) {
-    throw new Error("❌ Failed to extract folder ID from Master Folder URL.");
+    throw new Error("❌ Failed to extract folder ID from Project Folder URL.");
   }
 
   if (DEBUG) console.log("✅ Extracted folderId from URL:", match[1]);
