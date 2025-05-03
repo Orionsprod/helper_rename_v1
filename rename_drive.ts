@@ -23,3 +23,43 @@ export async function renameDriveFolder(folderId: string, newName: string): Prom
 
   if (DEBUG) console.log("✅ Folder renamed successfully:", folderId);
 }
+
+export async function folderExistsUnderRoots(folderId: string, roots: string[]): Promise<boolean> {
+  const accessToken = await getAccessTokenFromServiceAccount();
+
+  for (const rootId of roots) {
+    if (DEBUG) console.log("🔍 Searching under root:", rootId);
+    const found = await findFolderRecursively(folderId, rootId, accessToken);
+    if (found) return true;
+  }
+
+  return false;
+}
+
+async function findFolderRecursively(targetId: string, parentId: string, token: string): Promise<boolean> {
+  const query = `'${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&pageSize=1000`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    console.error("❌ Failed to list folders:", error);
+    return false;
+  }
+
+  const data = await res.json();
+  for (const file of data.files) {
+    if (file.id === targetId) {
+      if (DEBUG) console.log("✅ Folder found:", file.name);
+      return true;
+    }
+    // Recurse into subfolder
+    const foundInChild = await findFolderRecursively(targetId, file.id, token);
+    if (foundInChild) return true;
+  }
+
+  return false;
+}
