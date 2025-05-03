@@ -48,9 +48,10 @@ export async function getFolderIdFromPage(pageId: string): Promise<string> {
 
   const folderUrl = data.properties["Project Folder"]?.url;
 
-  if (!folderUrl) {
-    throw new Error("❌ Master Folder URL is empty or missing.");
-  }
+if (!folderUrl) {
+  if (DEBUG) console.log("⚠️ Project Folder URL is empty — skipping rename.");
+  return null;
+}
 
   const match = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   if (!match || !match[1]) {
